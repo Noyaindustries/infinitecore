@@ -1,0 +1,31 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/webhooks/padde-ci"
+  to = "/.netlify/functions/padde-ci"
+  status = 200
+
+[[redirects]]
+  from = "/api/files/upload"
+  to = "/.netlify/functions/files-upload"
+  status = 200
+
+[[redirects]]
+  from = "/api/files/download"
+  to = "/.netlify/functions/files-download"
+  status = 200
+
+[[redirects]]
+  from = "/api/files"
+  to = "/.netlify/functions/files-delete"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
