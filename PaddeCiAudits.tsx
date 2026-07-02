@@ -16,7 +16,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { db } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,15 +38,21 @@ export default function PaddeCiAudits() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      where('source', '==', 'padde-ci'),
-      orderBy('createdAt', 'desc')
-    );
+    // Pas de orderBy côté Firestore : évite l'index composite source+createdAt
+    const q = query(collection(db, 'orders'), where('source', '==', 'padde-ci'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAudits(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaddeAudit)));
+      const rows = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as PaddeAudit))
+        .sort((a, b) => {
+          const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+          const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+          return tb - ta;
+        });
+      setAudits(rows);
     }, (error) => {
+      console.error('PaddeCiAudits Firestore:', error);
       handleFirestoreError(error, OperationType.LIST, 'orders');
+      toast.error('Impossible de charger les audits PADDE-CI (vérifiez la connexion admin).');
     });
     return () => unsubscribe();
   }, []);

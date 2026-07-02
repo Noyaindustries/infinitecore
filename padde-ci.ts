@@ -1,6 +1,14 @@
 import { Handler } from '@netlify/functions';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { randomUUID } from 'crypto';
 
 const firebaseConfig = {
@@ -16,7 +24,11 @@ const firestoreDatabaseId = "ai-studio-42406826-d231-4e61-bda4-7369948f2694";
 
 // Éviter la réinitialisation à chaque invocation (warm instances)
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const db = getFirestore(app, firestoreDatabaseId);
+const db = initializeFirestore(
+  app,
+  { experimentalForceLongPolling: true },
+  firestoreDatabaseId
+);
 
 const ALLOWED_ORIGINS = ['https://padde-ci.com', 'https://www.padde-ci.com'];
 
