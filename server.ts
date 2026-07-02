@@ -152,19 +152,62 @@ async function startServer() {
     }
   });
 
-  // Webhook for PADDE-CI
+  // Webhook for PADDE-CI (Vercel — www.infinitecore.net/api/webhooks/padde-ci)
   app.post("/api/webhooks/padde-ci", async (req, res) => {
     try {
-      const data = req.body;
+      const data = req.body as Record<string, unknown>;
+      const type = typeof data.type === 'string' ? data.type : 'audit-generique';
+      const label =
+        type === 'audit-rapide' ? 'Rapide' :
+        type === 'audit-business' ? 'Business' : 'Institutionnel';
+      const clientName =
+        (typeof data.entreprise === 'string' && data.entreprise) ||
+        (typeof data.dirigeant === 'string' && data.dirigeant) ||
+        (typeof data.denomination === 'string' && data.denomination) ||
+        'Client PADDE-CI';
+      const createdAt = new Date().toISOString();
 
       const auditId = `PADDE-${Math.floor(1000 + Math.random() * 9000)}`;
       await setDoc(doc(db, 'padde_audits', auditId), {
         ...data,
-        createdAt: new Date().toISOString(),
-        processed: false
+        source: 'padde-ci',
+        createdAt,
+        processed: false,
       });
 
-      res.status(200).json({ success: true, message: "Demande d'audit reçue et traitée avec succès." });
+      const taskId = `TSK-PADDE-${randomUUID().split('-')[0].toUpperCase()}`;
+      await setDoc(doc(db, 'tasks', taskId), {
+        id: taskId,
+        userId: 'system',
+        title: `Audit PADDE-CI: ${label}`,
+        client: clientName,
+        columnId: 'nouveau',
+        isOrder: false,
+        source: 'padde-ci',
+        createdAt,
+        updatedAt: createdAt,
+        description: `Demande d'audit depuis padde-ci.com\nType: ${type}\nContact: ${data.whatsapp || 'Non fourni'}\n\nDétails:\n${JSON.stringify(data, null, 2)}`,
+      });
+
+      const orderId = `CMD-PADDE-${randomUUID().split('-')[0].toUpperCase()}`;
+      await setDoc(doc(db, 'orders', orderId), {
+        id: orderId,
+        userId: 'system',
+        clientName,
+        serviceName: `Audit PADDE-CI: ${label}`,
+        status: 'Nouveau',
+        source: 'padde-ci',
+        createdAt,
+        details: data,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Demande d'audit reçue et traitée avec succès.",
+        auditId,
+        orderId,
+        taskId,
+      });
     } catch (error) {
       console.error("Erreur Webhook PADDE-CI:", error);
       res.status(500).json({ success: false, error: "Erreur interne du serveur." });

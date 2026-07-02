@@ -118,7 +118,7 @@ function App() {
               <Route path="developers" element={<SuperAdminDevelopers />} />
               <Route path="supervision" element={<SuperAdminSupervision />} />
               <Route path="settings" element={<SuperAdminSettings />} />
-              <Route path="audits-padde" element={<PaddeCiAudits />} />
+              <Route path="audits-padde" element={<Navigate to="/admin/audits-padde" replace />} />
               <Route path="missions" element={<SuperAdminMissions />} />
             </Route>
           </Route>
@@ -134,6 +134,7 @@ function App() {
               <Route path="messagerie" element={<AdminMessagerie />} />
               <Route path="dossiers" element={<AdminDossiers />} />
               <Route path="instances" element={<AdminInstances />} />
+              <Route path="audits-padde" element={<PaddeCiAudits />} />
             </Route>
           </Route>
 

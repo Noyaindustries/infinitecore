@@ -91,7 +91,7 @@ export default function SuperAdminLayout() {
     { to: '/superadmin', icon: LayoutDashboard, label: 'Tableau de bord' },
     { to: '/superadmin/users', icon: Users, label: 'Utilisateurs' },
     { to: '/superadmin/orders', icon: CreditCard, label: 'Commandes & Paiements' },
-    { to: '/superadmin/audits-padde', icon: ClipboardList, label: 'Audits PADDE-CI' },
+    { to: '/admin/audits-padde', icon: ClipboardList, label: 'Audits PADDE-CI' },
     { to: '/superadmin/partners', icon: Handshake, label: 'Partenaires' },
     { to: '/superadmin/commando', icon: ShieldAlert, label: 'Equipe Commando — /admin' },
     { to: '/superadmin/developers', icon: Code, label: 'Equipe Développeurs — /developer' },
@@ -110,7 +110,7 @@ export default function SuperAdminLayout() {
       case '/superadmin/developers': return 'Équipe Développeurs — /developer';
       case '/superadmin/supervision': return 'Supervision Système';
       case '/superadmin/settings': return 'Configuration Globale';
-      case '/superadmin/audits-padde': return 'Audits PADDE-CI';
+      case '/admin/audits-padde': return 'Audits PADDE-CI';
       case '/superadmin/missions': return 'Missions Développeurs';
       default: return 'Espace Super Admin — /superadmin';
     }

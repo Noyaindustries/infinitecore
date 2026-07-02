@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, KanbanSquare, Briefcase, Users, Wallet, Copy, FolderOpen, LogOut, Menu, X, Bell, MessageCircle, ChevronDown, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, KanbanSquare, Briefcase, Users, Wallet, Copy, FolderOpen, LogOut, Menu, X, Bell, MessageCircle, ChevronDown, Sun, Moon, ClipboardList } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '../../lib/utils';
 import { db, auth } from '../../firebase';
@@ -77,6 +77,7 @@ export default function AdminLayout() {
   const navItems = [
     { id: 'admin', to: '/admin', icon: LayoutDashboard, label: 'Tableau de bord' },
     { id: 'pipeline', to: '/admin/pipeline', icon: KanbanSquare, label: 'Pipeline Noya — /admin/pipeline' },
+    { id: 'audits-padde', to: '/admin/audits-padde', icon: ClipboardList, label: 'Audits PADDE-CI' },
     { id: 'clients', to: '/admin/clients', icon: Users, label: 'CRM Clients' },
     { id: 'operations', to: '/admin/operations', icon: Briefcase, label: 'Opérations' },
     { id: 'finance', to: '/admin/finance', icon: Wallet, label: 'Finance' },
