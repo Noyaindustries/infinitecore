@@ -77,8 +77,10 @@ export default function PaddeCiAudits() {
   const [selected, setSelected] = useState<PaddeAudit | null>(null);
   const [isValidating, setIsValidating] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoadError(null);
     let ordersRows: PaddeAudit[] = [];
     let legacyRows: PaddeAudit[] = [];
 
@@ -94,6 +96,8 @@ export default function PaddeCiAudits() {
       publish();
     }, (error) => {
       console.error('PaddeCiAudits orders:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      setLoadError(`Lecture commandes impossible : ${msg}`);
       toast.error('Erreur chargement commandes PADDE-CI.');
     });
 
@@ -104,6 +108,8 @@ export default function PaddeCiAudits() {
       publish();
     }, (error) => {
       console.error('PaddeCiAudits padde_audits:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      setLoadError(`Lecture padde_audits impossible : ${msg}`);
       toast.error('Erreur chargement historique padde_audits.');
     });
 
@@ -190,6 +196,16 @@ export default function PaddeCiAudits() {
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          <strong>Erreur Firebase :</strong> {loadError}
+          <p className="mt-2 text-xs opacity-80">
+            Vérifiez que votre compte a le rôle admin/commando et que Firestore utilise la base
+            « {typeof window !== 'undefined' ? 'ai-studio-…' : ''} ».
+          </p>
+        </div>
+      )}
 
       <div className="bg-noya-sidebar rounded-3xl border border-white/5 shadow-2xl overflow-hidden">
         <div className="p-6 border-b border-white/5 bg-white/5 flex flex-col md:flex-row justify-between gap-4">
