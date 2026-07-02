@@ -28,7 +28,48 @@ interface PaddeAudit {
   status: string;
   createdAt: string;
   amount?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
+  store?: 'orders' | 'padde_audits';
+}
+
+function legacyToPaddeAudit(id: string, data: Record<string, unknown>): PaddeAudit {
+  const type = typeof data.type === 'string' ? data.type : '';
+  const label =
+    type === 'audit-rapide' ? 'Rapide' :
+    type === 'audit-business' ? 'Business' :
+    type === 'audit-institutionnel' ? 'Institutionnel' : 'Audit';
+  const clientName =
+    (typeof data.entreprise === 'string' && data.entreprise) ||
+    (typeof data.dirigeant === 'string' && data.dirigeant) ||
+    (typeof data.denomination === 'string' && data.denomination) ||
+    'Client PADDE-CI';
+
+  return {
+    id,
+    clientName,
+    serviceName: `Audit PADDE-CI: ${label}`,
+    status: data.processed === true ? 'Validé' : 'Nouveau',
+    createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
+    details: data,
+    store: 'padde_audits',
+  };
+}
+
+function mergeAudits(orders: PaddeAudit[], legacy: PaddeAudit[]): PaddeAudit[] {
+  const byId = new Map<string, PaddeAudit>();
+  for (const row of [...orders, ...legacy]) {
+    byId.set(row.id, row);
+  }
+  return [...byId.values()].sort((a, b) => {
+    const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+    return tb - ta;
+  });
+}
+
+function detailStr(details: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = details?.[key];
+  return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
 export default function PaddeCiAudits() {
@@ -38,32 +79,54 @@ export default function PaddeCiAudits() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Pas de orderBy côté Firestore : évite l'index composite source+createdAt
-    const q = query(collection(db, 'orders'), where('source', '==', 'padde-ci'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const rows = snapshot.docs
-        .map((d) => ({ id: d.id, ...d.data() } as PaddeAudit))
-        .sort((a, b) => {
-          const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
-          const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
-          return tb - ta;
-        });
-      setAudits(rows);
+    let ordersRows: PaddeAudit[] = [];
+    let legacyRows: PaddeAudit[] = [];
+
+    const publish = () => setAudits(mergeAudits(ordersRows, legacyRows));
+
+    const ordersQuery = query(collection(db, 'orders'), where('source', '==', 'padde-ci'));
+    const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+      ordersRows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<PaddeAudit, 'id'>),
+        store: 'orders' as const,
+      }));
+      publish();
     }, (error) => {
-      console.error('PaddeCiAudits Firestore:', error);
-      handleFirestoreError(error, OperationType.LIST, 'orders');
-      toast.error('Impossible de charger les audits PADDE-CI (vérifiez la connexion admin).');
+      console.error('PaddeCiAudits orders:', error);
+      toast.error('Erreur chargement commandes PADDE-CI.');
     });
-    return () => unsubscribe();
+
+    const unsubLegacy = onSnapshot(collection(db, 'padde_audits'), (snapshot) => {
+      legacyRows = snapshot.docs.map((d) =>
+        legacyToPaddeAudit(d.id, d.data() as Record<string, unknown>)
+      );
+      publish();
+    }, (error) => {
+      console.error('PaddeCiAudits padde_audits:', error);
+      toast.error('Erreur chargement historique padde_audits.');
+    });
+
+    return () => {
+      unsubOrders();
+      unsubLegacy();
+    };
   }, []);
 
   const handleValidate = async (audit: PaddeAudit) => {
     setIsValidating(audit.id);
     try {
-      await updateDoc(doc(db, 'orders', audit.id), {
-        status: 'Validé',
-        validatedAt: new Date().toISOString()
-      });
+      if (audit.store === 'padde_audits') {
+        await updateDoc(doc(db, 'padde_audits', audit.id), {
+          processed: true,
+          validatedAt: new Date().toISOString(),
+        });
+      } else {
+        await updateDoc(doc(db, 'orders', audit.id), {
+          status: 'Validé',
+          validatedAt: new Date().toISOString(),
+        });
+      }
 
       const notifRef = doc(collection(db, 'notifications'));
       await setDoc(notifRef, {
@@ -189,7 +252,7 @@ export default function PaddeCiAudits() {
                       <td className="p-6">
                         <div className="flex items-center gap-2 text-text-secondary font-medium">
                           <MessageSquare size={12} className="text-noya-blue/50" />
-                          {audit.details?.whatsapp || audit.details?.telephone || '—'}
+                          {detailStr(audit.details, 'whatsapp') || detailStr(audit.details, 'telephone') || '—'}
                         </div>
                       </td>
                       <td className="p-6 text-[10px] text-text-secondary/60 font-mono">
@@ -289,20 +352,20 @@ export default function PaddeCiAudits() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
-                  {selected.details?.whatsapp && (
+                  {detailStr(selected.details, 'whatsapp') && (
                     <div className="bg-noya-black/30 p-5 rounded-2xl border border-white/5">
                       <p className="text-[9px] font-black text-text-secondary/50 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <Phone size={12} className="text-noya-green" /> Canal WhatsApp
                       </p>
-                      <p className="font-bold text-text-primary">{selected.details.whatsapp}</p>
+                      <p className="font-bold text-text-primary">{detailStr(selected.details, 'whatsapp')}</p>
                     </div>
                   )}
-                  {selected.details?.secteur && (
+                  {detailStr(selected.details, 'secteur') && (
                     <div className="bg-noya-black/30 p-5 rounded-2xl border border-white/5">
                       <p className="text-[9px] font-black text-text-secondary/50 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <Building size={12} className="text-noya-orange" /> Secteur d'Activité
                       </p>
-                      <p className="font-bold text-text-primary uppercase text-sm tracking-tight">{selected.details.secteur}</p>
+                      <p className="font-bold text-text-primary uppercase text-sm tracking-tight">{detailStr(selected.details, 'secteur')}</p>
                     </div>
                   )}
                 </div>
